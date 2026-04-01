@@ -9,6 +9,7 @@ import (
 
 type Config struct {
 	DatabaseURL        string
+	AtlasDatabaseURL   string
 	DBName             string
 	Port               string
 	CountriesAPIURL    string
@@ -22,6 +23,7 @@ func Load() *Config {
 
 	return &Config{
 		DatabaseURL:        getEnv("DATABASE_URL", ""),
+		AtlasDatabaseURL:   getEnv("ATLAS_DATABASE_URL", ""),
 		DBName:             getEnv("DB_NAME", ""),
 		Port:               getEnv("PORT", "3000"),
 		CountriesAPIURL:    getEnv("COUNTRIES_API_URL", ""),

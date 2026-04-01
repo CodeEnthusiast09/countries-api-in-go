@@ -1,38 +1,42 @@
 package database
 
 import (
-	"database/sql"
+	"context"
 	"fmt"
 	"log"
+	"os"
 
-	"github.com/golang-migrate/migrate/v4"
-	"github.com/golang-migrate/migrate/v4/database/mysql"
-	_ "github.com/golang-migrate/migrate/v4/source/file"
+	"ariga.io/atlas/atlasexec"
 )
 
-// RunMigrations applies all pending "up" migrations from the migrations/ folder.
-// It receives a *sql.DB (standard library) — NOT a *gorm.DB.
-// golang-migrate works at a lower level than GORM, so it needs the raw driver.
-func RunMigrations(sqlDB *sql.DB, dbName string) error {
-	driver, err := mysql.WithInstance(sqlDB, &mysql.Config{
-		DatabaseName: dbName,
+func RunMigrations(migrationsDir string, dbURL string) error {
+	// atlasexec works on a temporary working directory.
+	// WithMigrations loads your .sql files from disk into that temp dir.
+	// This means the Atlas CLI doesn't need to know where your project root is —
+	// it reads the files directly from memory via the fs.FS interface.
+	workdir, err := atlasexec.NewWorkingDir(
+		atlasexec.WithMigrations(
+			os.DirFS(migrationsDir),
+		),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to load migrations directory: %w", err)
+	}
+	// atlasexec copies files to a temp dir internally, so we clean it up when done
+	defer workdir.Close()
+
+	client, err := atlasexec.NewClient(workdir.Path(), "atlas")
+	if err != nil {
+		return fmt.Errorf("failed to initialize atlas client: %w", err)
+	}
+
+	res, err := client.MigrateApply(context.Background(), &atlasexec.MigrateApplyParams{
+		URL: dbURL,
 	})
 	if err != nil {
-		return fmt.Errorf("failed to create migrate driver: %w", err)
+		return fmt.Errorf("atlas migrate apply failed: %w", err)
 	}
 
-	// "file://migrations" tells migrate to look for .sql files in the migrations/ folder
-	// relative to where you run the binary (i.e., your project root)
-	m, err := migrate.NewWithDatabaseInstance("file://migrations", dbName, driver)
-	if err != nil {
-		return fmt.Errorf("failed to create migrator: %w", err)
-	}
-
-	if err := m.Up(); err != nil && err != migrate.ErrNoChange {
-		// ErrNoChange just means "nothing new to run" — that's fine, not a real error
-		return fmt.Errorf("migration failed: %w", err)
-	}
-
-	log.Println("Migrations ran successfully")
+	log.Printf("Applied %d migration(s)\n", len(res.Applied))
 	return nil
 }
