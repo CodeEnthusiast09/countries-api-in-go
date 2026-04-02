@@ -1,2 +1,3 @@
 .env
 main
+internal/database/database_if_i_want_to_run_programmatic_mode(i.e when the app loads).go

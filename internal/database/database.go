@@ -12,47 +12,32 @@ type Database struct {
 	DB *gorm.DB
 }
 
-// FOR AUTO-MiGRATION
-// func New(cfg *config.Config) *Database {
-// 	db, err := gorm.Open(mysql.Open(cfg.DatabaseURL), &gorm.Config{})
-// 	if err != nil {
-// 		log.Fatalf("Failed to connect to database: %v", err)
-// 	}
+// New connects to the database and returns a Database instance.
 //
-// 	if err := db.AutoMigrate(&models.Country{}); err != nil {
-// 		log.Fatalf("AutoMigrate failed: %v", err)
-// 	}
+// NOTE ON MIGRATIONS:
+// Migrations are intentionally NOT run here in production.
+// They are handled by entrypoint.sh (via `atlas migrate apply`) BEFORE
+// this application process starts. This is the industry standard pattern:
 //
-// 	log.Println("Database connected and migrated")
-// 	return &Database{DB: db}
-// }
-
+//	entrypoint.sh:
+//	  1. Wait for DB to be ready
+//	  2. atlas migrate apply   ← migrations happen here
+//	  3. exec /app/server      ← only then does this code run
+//
+// This separation means:
+//   - If a migration fails, the app never starts (clear failure signal)
+//   - Multiple app replicas won't race to migrate the same DB simultaneously
+//   - Migration concerns are kept out of application code
+//
+// For local development, run migrations manually:
+//
+//	atlas migrate apply --env gorm --url "mysql://user:pass@localhost:3306/db"
 func New(cfg *config.Config) *Database {
 	db, err := gorm.Open(mysql.Open(cfg.DatabaseURL), &gorm.Config{})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
-	// 👇👇👇 - for go-migrate
-	// gorm.DB wraps the standard library *sql.DB.
-	// We unwrap it here because golang-migrate needs the raw driver.
-	// sqlDB, err := db.DB()
-	// if err != nil {
-	// 	log.Fatalf("Failed to get underlying sql.DB: %v", err)
-	// }
-	//
-	// if err := RunMigrations(sqlDB, cfg.DBName); err != nil {
-	// 	log.Fatalf("Migration error: %v", err)
-	// }
-	// 👆👆👆 - for go-migrate
-
-	// 👇👇👇 - for Atlas
-	// Pass the folder path (not a file:// URL) — os.DirFS in RunMigrations handles it
-	if err := RunMigrations("migrations", cfg.AtlasDatabaseURL); err != nil {
-		log.Fatalf("Migration error: %v", err)
-	}
-	// 👆👆👆 - for Atlas
-
-	log.Println("Database connected and migrated")
+	log.Println("Database connected successfully")
 	return &Database{DB: db}
 }

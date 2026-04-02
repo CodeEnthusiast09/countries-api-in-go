@@ -1,0 +1,27 @@
+# railway.toml
+# This file tells Railway how to build and deploy your service.
+# Railway will auto-detect this file at the repo root.
+# Docs: https://docs.railway.com/reference/config-as-code
+
+[build]
+# Tells Railway to use your Dockerfile (auto-detected at repo root).
+# If you don't specify this, Railway might try to use its own Nixpacks
+# builder which won't know how to set up Atlas.
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"
+
+[deploy]
+# Railway will hit GET /status before marking the deployment as healthy.
+# If this endpoint returns a non-2xx status, Railway marks the deployment
+# as failed and rolls back to the previous version.
+healthcheckPath = "/status"
+
+# How long Railway waits (in seconds) for the healthcheck to pass.
+# We give it 300 seconds (5 minutes) because:
+#   - The first deploy downloads dependencies and runs all migrations
+#   - Subsequent deploys should be much faster (~30 seconds)
+healthcheckTimeout = 300
+
+# If the container crashes (non-zero exit code), Railway will restart it.
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 3
