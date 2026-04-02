@@ -8,10 +8,13 @@ import (
 	"github.com/CodeEnthusiast09/country-currency-api/internal/database"
 	"github.com/CodeEnthusiast09/country-currency-api/internal/router"
 	"github.com/CodeEnthusiast09/country-currency-api/internal/services"
+	"github.com/gin-gonic/gin"
 )
 
 func main() {
 	cfg := config.Load()
+
+	gin.SetMode(cfg.GinMode)
 
 	db := database.New(cfg)
 
@@ -20,6 +23,10 @@ func main() {
 	countryService := services.NewCountryService(db.DB, externalService)
 
 	r := router.Setup(countryService)
+
+	if err := r.SetTrustedProxies(nil); err != nil {
+		log.Fatalf("Failed to set trusted proxies: %v", err)
+	}
 
 	addr := fmt.Sprintf(":%s", cfg.Port)
 

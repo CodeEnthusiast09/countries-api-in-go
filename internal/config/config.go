@@ -14,6 +14,7 @@ type Config struct {
 	Port               string
 	CountriesAPIURL    string
 	ExchangeRateAPIURL string
+	GinMode            string
 }
 
 func Load() *Config {
@@ -28,6 +29,7 @@ func Load() *Config {
 		Port:               getEnv("PORT", "3000"),
 		CountriesAPIURL:    getEnv("COUNTRIES_API_URL", ""),
 		ExchangeRateAPIURL: getEnv("EXCHANGE_RATE_API_URL", ""),
+		GinMode:            getEnv("GIN_MODE", ""),
 	}
 }
 
