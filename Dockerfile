@@ -4,10 +4,10 @@
 # We use a full Go image here because we need the Go compiler and all build
 # tools. The "alpine" variant is just a lighter Linux that still has everything
 # we need to compile Go code.
-FROM golang:1.23-alpine AS builder
+FROM golang:1.26-alpine AS builder
 
 # Install git because some Go module downloads require it
-RUN apk add --no-cache git
+RUN apk add --no-cache git=2.52.0-r0
 
 WORKDIR /app
 
@@ -36,18 +36,25 @@ RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 # We start fresh from a clean Alpine image. We do NOT use the golang image here
 # because we only need to RUN the binary, not compile it.
 # This makes the final image much smaller (< 50MB vs ~300MB+).
-FROM alpine:3.19
+FROM alpine:3.21
 
 # ca-certificates → needed for your app to make HTTPS calls (to RestCountries
 #                   API, exchange rate API, etc.)
 # curl            → needed to download the Atlas CLI binary below
-RUN apk add --no-cache ca-certificates curl
+RUN apk add --no-cache \
+    ca-certificates=20250911-r0 \
+    curl=8.14.1-r2
 
 # Download the Atlas CLI binary.
 # This is the exact same binary you have installed locally on your machine.
 # By installing it here, atlasexec can find it at /usr/local/bin/atlas,
 # AND our entrypoint script can call it directly.
-RUN curl -sSf https://atlasgo.sh | sh
+# /bin/ash = Alpine's actual shell (not bash)
+# -e        = exit immediately if any command fails
+# -o pipefail = fail the whole pipe if ANY command in it fails
+#              (e.g. curl fails → don't silently pipe nothing into sh)
+SHELL ["/bin/ash", "-eo", "pipefail", "-c"]
+RUN curl -sSf https://atlasgo.sh | ATLAS_VERSION=v1.1.0 sh
 
 WORKDIR /app
 
